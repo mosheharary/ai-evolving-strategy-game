@@ -1,0 +1,39 @@
+{
+  "name": "echoes-of-the-frontier",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter \"./apps/**\" dev",
+    "build": "pnpm -r --filter \"./apps/**\" build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm --filter @echoes/database generate",
+    "db:migrate": "pnpm --filter @echoes/database migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @echoes/database migrate:dev",
+    "seed": "pnpm --filter @echoes/database seed",
+    "replay:verify": "tsx scripts/replay-verify.ts"
+  },
+  "devDependencies": {
+    "@echoes/database": "workspace:*",
+    "@echoes/game-engine": "workspace:*",
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.19.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "4.1.11"
+  }
+}

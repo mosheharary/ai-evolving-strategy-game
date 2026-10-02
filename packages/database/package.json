@@ -1,0 +1,29 @@
+{
+  "name": "@echoes/database",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@echoes/shared": "workspace:*",
+    "@echoes/game-types": "workspace:*",
+    "@echoes/game-engine": "workspace:*",
+    "@echoes/ai": "workspace:*",
+    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0",
+    "@types/pg": "8.15.6",
+    "tsx": "4.23.15",
+    "dotenv": "17.2.3"
+  }
+}

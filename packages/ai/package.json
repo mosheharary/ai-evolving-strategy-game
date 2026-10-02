@@ -1,0 +1,16 @@
+{
+  "name": "@echoes/ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@echoes/shared": "workspace:*",
+    "@echoes/game-types": "workspace:*",
+    "@echoes/game-engine": "workspace:*",
+    "@google/genai": "2.26.0",
+    "@typesafe-ai/sdk": "0.6.0",
+    "zod": "4.6.5"
+  }
+}

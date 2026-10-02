@@ -1,0 +1,370 @@
+// Echoes of the Frontier — persistence model.
+//
+// Hybrid approach:
+//   * normalized entities  (Faction, Settlement, Unit, Tile, ResourceNode, Technology, Quest,
+//                           GameEvent, HistoricalEvent, DiplomacyRelation) — queryable projections
+//                           of the current authoritative state, rewritten every turn
+//   * versioned snapshots  (GameState, SaveGame) — compact gzip-compressed simulation state
+//                           with schemaVersion + stateHash, used for fast restore
+//   * event history        (GameCommand) — the validated command log incl. stored AI decisions,
+//                           enabling deterministic replay without re-calling AI providers
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Player {
+  id         String     @id @default(uuid()) @db.Uuid
+  createdAt  DateTime   @default(now())
+  lastSeenAt DateTime   @default(now())
+  games      Game[]
+  saves      SaveGame[]
+}
+
+model Game {
+  id               String    @id
+  playerId         String    @db.Uuid
+  player           Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  name             String
+  seed             String
+  civilizationName String
+  difficulty       String
+  status           String    @default("active")
+  currentTurn      Int
+  era              Int
+  stateHash        String
+  commandSeq       Int       @default(0)
+  schemaVersion    Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  snapshots   GameState[]
+  commands    GameCommand[]
+  saves       SaveGame[]
+  factions    Faction[]
+  settlements Settlement[]
+  units       Unit[]
+  tiles       Tile[]
+  resources   ResourceNode[]
+  techs       Technology[]
+  quests      Quest[]
+  events      GameEvent[]
+  history     HistoricalEvent[]
+  relations   DiplomacyRelation[]
+  decisions   AIDecision[]
+  narratives  Narrative[]
+  assetLinks  GameAssetLink[]
+
+  @@index([playerId, updatedAt])
+}
+
+/// Versioned world snapshot (gzip JSON of the full authoritative GameState).
+model GameState {
+  id            String   @id @default(uuid()) @db.Uuid
+  gameId        String
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  turn          Int
+  /// Command sequence number this snapshot reflects; replay continues from seq + 1.
+  seq           Int
+  kind          String
+  stateHash     String
+  schemaVersion Int
+  sizeBytes     Int
+  data          Bytes
+  createdAt     DateTime @default(now())
+
+  @@index([gameId, seq])
+}
+
+/// Event-sourced command log. END_TURN rows carry the AI decisions used, so replay never re-calls AI.
+model GameCommand {
+  id        String   @id @default(uuid()) @db.Uuid
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  seq       Int
+  commandId String
+  turn      Int
+  type      String
+  payload   Json
+  aiInputs  Json?
+  stateHash String
+  createdAt DateTime @default(now())
+
+  @@unique([gameId, commandId])
+  @@unique([gameId, seq])
+}
+
+model SaveGame {
+  id               String   @id @default(uuid()) @db.Uuid
+  playerId         String   @db.Uuid
+  player           Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  gameId           String
+  game             Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name             String
+  autosave         Boolean  @default(false)
+  seed             String
+  civilizationName String
+  turn             Int
+  era              Int
+  schemaVersion    Int
+  appVersion       String
+  stateHash        String
+  commandSeq       Int
+  sizeBytes        Int
+  data             Bytes
+  createdAt        DateTime @default(now())
+
+  @@index([playerId, createdAt])
+  @@index([gameId, autosave])
+}
+
+model Faction {
+  gameId           String
+  game             Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  factionId        String
+  name             String
+  kind             String
+  archetype        String
+  color            String
+  alive            Boolean
+  opinionOfPlayer  Float
+  militaryStrength Float
+  settlementCount  Int
+  techCount        Int
+  posture          String
+  personality      Json
+  memories         Json
+
+  @@id([gameId, factionId])
+}
+
+model Settlement {
+  gameId       String
+  game         Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  settlementId String
+  ownerId      String
+  founderId    String
+  name         String
+  tile         Int
+  population   Int
+  stability    Float
+  hp           Int
+  isCapital    Boolean
+  foundedTurn  Int
+
+  @@id([gameId, settlementId])
+  @@index([gameId, ownerId])
+}
+
+model Unit {
+  gameId  String
+  game    Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  unitId  String
+  ownerId String
+  type    String
+  tile    Int
+  hp      Int
+  status  String
+
+  @@id([gameId, unitId])
+}
+
+/// Only tiles that diverge from base world generation (owned, built on, polluted or transformed).
+model Tile {
+  gameId       String
+  game         Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  tileIndex    Int
+  biome        String
+  baseBiome    String
+  ownerId      String?
+  buildingType String?
+  pollution    Float
+  forest       Float
+  fertility    Float
+  habitat      Float
+  prosperity   Float
+
+  @@id([gameId, tileIndex])
+}
+
+model ResourceNode {
+  gameId        String
+  game          Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  tileIndex     Int
+  type          String
+  amount        Float
+  initialAmount Float
+
+  @@id([gameId, tileIndex])
+}
+
+model Technology {
+  gameId    String
+  game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  factionId String
+  techId    String
+
+  @@id([gameId, factionId, techId])
+}
+
+model Quest {
+  gameId      String
+  game        Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  questId     String
+  type        String
+  title       String
+  status      String
+  issuedTurn  Int
+  expiresTurn Int
+  data        Json
+
+  @@id([gameId, questId])
+}
+
+model GameEvent {
+  gameId   String
+  game     Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  eventId  String
+  turn     Int
+  type     String
+  severity Float
+  region   String
+  major    Boolean
+  status   String
+  data     Json
+
+  @@id([gameId, eventId])
+  @@index([gameId, turn])
+}
+
+model HistoricalEvent {
+  gameId     String
+  game       Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  entryId    String
+  turn       Int
+  type       String
+  importance Int
+  summary    String
+  data       Json
+
+  @@id([gameId, entryId])
+  @@index([gameId, turn])
+}
+
+model DiplomacyRelation {
+  gameId    String
+  game      Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  pairKey   String
+  a         String
+  b         String
+  status    String
+  trade     Boolean
+  sinceTurn Int
+  data      Json
+
+  @@id([gameId, pairKey])
+}
+
+/// Explainable strategic history: every AI faction decision with its inputs and outcome.
+model AIDecision {
+  id                    String   @id @default(uuid()) @db.Uuid
+  gameId                String
+  game                  Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  turn                  Int
+  factionId             String
+  stateHash             String
+  provider              String
+  model                 String
+  questionSchemaVersion String
+  answer                Json?
+  probability           Float?
+  confidence            Float?
+  executionResult       Json?
+  latencyMs             Int
+  fallbackUsed          Boolean
+  fallbackReason        String?
+  requestId             String?
+  correlationId         String
+  createdAt             DateTime @default(now())
+
+  @@index([gameId, turn])
+}
+
+/// AI usage accounting / telemetry (one row per provider call attempt chain).
+model AIRequest {
+  id            String   @id @default(uuid()) @db.Uuid
+  correlationId String
+  gameId        String
+  turn          Int
+  playerId      String
+  provider      String
+  model         String
+  operation     String
+  promptId      String
+  promptVersion Int
+  cacheKey      String
+  status        String
+  errorKind     String?
+  latencyMs     Int
+  retryCount    Int
+  inputTokens   Int
+  outputTokens  Int
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([gameId])
+  @@index([provider, status])
+}
+
+model GeneratedAsset {
+  id              String          @id @default(uuid()) @db.Uuid
+  promptHash      String          @unique
+  kind            String
+  model           String
+  source          String
+  promptId        String
+  promptVersion   Int
+  width           Int
+  height          Int
+  mimeType        String
+  storageLocation String
+  gameId          String?
+  eventId         String?
+  createdAt       DateTime        @default(now())
+  links           GameAssetLink[]
+}
+
+model GameAssetLink {
+  gameId    String
+  game      Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  key       String
+  assetId   String         @db.Uuid
+  asset     GeneratedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  status    String         @default("ready")
+  createdAt DateTime       @default(now())
+
+  @@id([gameId, key])
+}
+
+/// Presentation-only narrative (never part of authoritative state or its hash).
+model Narrative {
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  key       String
+  kind      String
+  title     String
+  body      String
+  tone      String
+  reactions Json
+  source    String
+  turn      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([gameId, key])
+}

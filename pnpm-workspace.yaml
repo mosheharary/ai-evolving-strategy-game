@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tests"
+allowBuilds:
+  "@prisma/engines": true
+  prisma: true
+  esbuild: true
+  sharp: true
+  msgpackr-extract: true
+  "@parcel/watcher": true
+  unrs-resolver: true
+  "@google/genai": false
+  protobufjs: false
+minimumReleaseAgeExclude:
+  - "@google/genai@2.26.0"

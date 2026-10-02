@@ -1,0 +1,17 @@
+{
+  "name": "@echoes/tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "devDependencies": {
+    "@echoes/ai": "workspace:*",
+    "@echoes/api": "workspace:*",
+    "@echoes/database": "workspace:*",
+    "@echoes/game-engine": "workspace:*",
+    "@echoes/game-types": "workspace:*",
+    "@echoes/platform": "workspace:*",
+    "@playwright/test": "1.63.0",
+    "fastify": "5.12.5"
+  }
+}

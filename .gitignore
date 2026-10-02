@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+coverage/
+data/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+packages/database/src/generated/
+playwright-report/
+test-results/
+*.tsbuildinfo

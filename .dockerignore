@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/dist
+**/coverage
+data
+.env
+.env.*
+!.env.example
+**/*.log
+playwright-report
+test-results
+packages/database/src/generated
+.git
